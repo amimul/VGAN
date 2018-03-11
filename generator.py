@@ -110,17 +110,17 @@ class Generator(object):
         # pretraining loss
         one_hot_x = tf.one_hot(tf.to_int32(tf.reshape(self.x, [-1])), self.num_emb,
                                1.0, 0.0)  # (batch * seqlen) * vocab_size
-        lstm_loss = -tf.reduce_sum(
+        self.lstm_loss = -tf.reduce_sum(
             one_hot_x * tf.log(
                 tf.clip_by_value(tf.reshape(self.lstm_predictions, [-1, self.num_emb]), 1e-20, 1.0)
             )
         ) / (self.sequence_length * self.batch_size)
-        recon_loss = tf.reduce_sum(
+        self.recon_loss = tf.reduce_sum(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_predictions, [-1, self.num_emb]),
                                                     labels=one_hot_x))
-        kl_loss = tf.reduce_sum(self.kl_losses.stack())
+        self.kl_loss = tf.reduce_sum(self.kl_losses.stack())
 
-        self.pretrain_loss = lstm_loss + recon_loss + kl_loss
+        self.pretrain_loss = self.lstm_loss + self.recon_loss #+ self.kl_loss
 
         # training updates
         pretrain_opt = self.g_optimizer(self.learning_rate)
@@ -148,8 +148,13 @@ class Generator(object):
         return outputs
 
     def pretrain_step(self, sess, x):
-        outputs = sess.run([self.pretrain_updates, self.pretrain_loss], feed_dict={self.x: x})
-        return outputs
+        outputs = sess.run([self.pretrain_updates, self.pretrain_loss, self.lstm_predictions, self.vae_predictions, self.lstm_loss, self.recon_loss, self.kl_loss], feed_dict={self.x: x})
+        # print("lstm predictions:\n", outputs[2])
+        # print("vae predictions:\n", outputs[3])
+        print("lstm loss: %f", outputs[4])
+        print("recon loss: %f", outputs[5])
+        print("kl loss: %f", outputs[6])
+        return outputs[:2]
 
     def init_matrix(self, shape):
         return tf.random_normal(shape, stddev=0.1)
@@ -253,6 +258,7 @@ class Generator(object):
             :return: logits: batch_size * num_emb
                     prob: batch_size * num_emb, probability over all vocabulary
             """
+            print("vae predicting.")
             # reparametrization
             rand = tf.random_normal(shape=tf.shape(miu))  # batch * z_dim
             z = miu + tf.exp(logvar / 2) * rand  # batch * z_dim
@@ -329,6 +335,7 @@ class Generator(object):
         pos_logvars = pos_logvars.unstack(pos_logvar)
 
         def _recurrence(i, pri_miu, pri_logvar, pos_miu, pos_logvar, kl_divs):
+            print("calculating kl divergence.")
             pri_sig = tf.matmul(tf.transpose(pri_logvar), pri_logvar)
             prior_dist = tf.distributions.Normal(loc=pri_miu, scale=pri_sig)
             pos_sig = tf.matmul(tf.transpose(pos_logvar), pos_logvar)
