@@ -118,10 +118,10 @@ class Generator(object):
         ) / (self.sequence_length * self.batch_size)
         self.recon_loss = tf.reduce_sum(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_predictions, [-1, self.num_emb]),
-                                                    labels=one_hot_x))
+                                                    labels=one_hot_x)) / (self.sequence_length * self.batch_size)
         self.kl_loss = tf.reduce_sum(self.kl_losses.stack())
 
-        self.pretrain_loss = self.lstm_loss + self.recon_loss #+ self.kl_loss
+        self.pretrain_loss = self.lstm_loss + self.recon_loss + self.kl_loss
 
         # training updates
         pretrain_opt = self.g_optimizer(self.learning_rate)
@@ -316,42 +316,3 @@ class Generator(object):
 
         return unit
 
-    def calculate_kl_loss(self, pri_miu, pri_logvar, pos_miu, pos_logvar):
-        """
-        :param pri_miu: batch * z_dim
-        :param pri_logvar:  batch * z_dim
-        :param pos_miu:  batch * z_dim
-        :param pos_logvar:  batch * z_dim
-        :return:
-        """
-        kl_divs = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.batch_size, name="kl_divs")
-        pri_mius = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.batch_size, name="pri_mius", clear_after_read=False)
-        pri_mius = pri_mius.unstack(pri_miu)
-        pri_logvars = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.batch_size, name="pri_logvars", clear_after_read=False)
-        pri_logvars = pri_logvars.unstack(pri_logvar)
-        pos_mius = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.batch_size, name="pos_mius", clear_after_read=False)
-        pos_mius = pos_mius.unstack(pos_miu)
-        pos_logvars = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.batch_size, name="pos_logvars", clear_after_read=False)
-        pos_logvars = pos_logvars.unstack(pos_logvar)
-
-        def _recurrence(i, pri_miu, pri_logvar, pos_miu, pos_logvar, kl_divs):
-            print("calculating kl divergence.")
-            pri_sig = tf.matmul(tf.transpose(pri_logvar), pri_logvar)
-            prior_dist = tf.distributions.Normal(loc=pri_miu, scale=pri_sig)
-            pos_sig = tf.matmul(tf.transpose(pos_logvar), pos_logvar)
-            posterior_dist = tf.distributions.Normal(loc=pos_miu, scale=pos_sig)
-            kl_div = tf.distributions.kl_divergence(prior_dist, posterior_dist)
-            kl_divs = kl_divs.write(i, kl_div)
-            prim_next = pri_mius.read(i)
-            pris_next = pri_logvars.read(i)
-            posm_next = pos_mius.read(i)
-            poss_next = pos_logvars.read(i)
-            return i + 1, prim_next, [pris_next], posm_next, [poss_next], kl_divs
-
-        _, _, _, _, _, kl_divs = control_flow_ops.while_loop(
-            cond=lambda i, _1, _2, _3, _4, _5: i < self.batch_size,
-            body=_recurrence,
-            loop_vars=(tf.constant(0, dtype=tf.int32), pri_mius.read(0), [pri_logvars.read(0)],
-                       pos_mius.read(0), [pos_logvars.read(0)], kl_divs))
-
-        return kl_divs.stack()
