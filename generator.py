@@ -49,13 +49,23 @@ class Generator(object):
                                              dynamic_size=False, infer_shape=True)
 
         def _g_recurrence(i, x_t, h_tm1, gen_o, gen_x):
+            # h_t = self.g_recurrent_unit(x_t, h_tm1)  # hidden_memory_tuple
+            # o_t = self.g_output_unit(h_t)  # batch x vocab , logits not prob
+            # log_prob = tf.log(tf.nn.softmax(o_t))
+            # next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)  # [batch_size]
+            # x_tp1 = tf.nn.embedding_lookup(self.g_embeddings, next_token)  # batch x emb_dim, x_t for next loop
+            # gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.num_emb, 1.0, 0.0),
+            #                                                  tf.nn.softmax(o_t)), 1))  # [batch_size] , prob
+            # gen_x = gen_x.write(i, next_token)  # indices, batch_size
+
             h_t = self.g_recurrent_unit(x_t, h_tm1)  # hidden_memory_tuple
-            o_t = self.g_output_unit(h_t)  # batch x vocab , logits not prob
-            log_prob = tf.log(tf.nn.softmax(o_t))
+            pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], x_t)  # params for posterior dist.
+            logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
+            log_prob = tf.log(prob)
             next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)  # [batch_size]
             x_tp1 = tf.nn.embedding_lookup(self.g_embeddings, next_token)  # batch x emb_dim, x_t for next loop
             gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.num_emb, 1.0, 0.0),
-                                                             tf.nn.softmax(o_t)), 1))  # [batch_size] , prob
+                                                             prob), 1))  # [batch_size] , prob
             gen_x = gen_x.write(i, next_token)  # indices, batch_size
             return i + 1, x_tp1, h_t, gen_o, gen_x
 
