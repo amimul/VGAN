@@ -1,4 +1,4 @@
-import tensorflow as tf
+from utils import *
 from tensorflow.python.ops import tensor_array_ops, control_flow_ops
 
 
@@ -91,7 +91,8 @@ class Generator(object):
             logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
             lstm_predictions = lstm_predictions.write(i, tf.nn.softmax(o_t))  # possibility distribution
             vae_predictions = vae_predictions.write(i, logits)
-            kl_losses = kl_losses.write(i, self.calculate_kl_loss(pri_miu, pri_logvar, pos_miu, pos_logvar))
+            # kl_losses = kl_losses.write(i, self.calculate_kl_loss(pri_miu, pri_logvar, pos_miu, pos_logvar))
+            kl_losses = kl_losses.write(i, gaussian_kld(pri_miu, pri_logvar, pos_miu, pos_logvar))
             x_tp1 = ta_emb_x.read(i)  # true next input
             return i + 1, x_tp1, h_t, lstm_predictions, vae_predictions, kl_losses
 
@@ -260,8 +261,7 @@ class Generator(object):
             """
             print("vae predicting.")
             # reparametrization
-            rand = tf.random_normal(shape=tf.shape(miu))  # batch * z_dim
-            z = miu + tf.exp(logvar / 2) * rand  # batch * z_dim
+            z = sample_gaussian(miu, logvar)  # batch * z_dim
             h = tf.nn.relu(tf.matmul(z, self.W_z2h) + self.b_z2h)  # batch * h_dim
             logits = tf.matmul(h, self.W_h2x) + self.b_h2x  # batch * num_emb(vocab_size)
             prob = tf.nn.softmax(logits)
