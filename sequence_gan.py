@@ -68,15 +68,17 @@ def target_loss(sess, target_lstm, data_loader):
 
 def pre_train_epoch(sess, trainable_model, data_loader):
     # Pre-train the generator using MLE for one epoch
-    supervised_g_losses = []
+    supervised_g_losses, lstm_losses, recon_losses, kl_losses = [], [], [], []
     data_loader.reset_pointer()
 
     for it in range(data_loader.num_batch):
         batch = data_loader.next_batch()
-        _, g_loss = trainable_model.pretrain_step(sess, batch)
+        _, g_loss, lstm_loss, recon_loss, kl_loss = trainable_model.pretrain_step(sess, batch)
         supervised_g_losses.append(g_loss)
-
-    return np.mean(supervised_g_losses)
+        lstm_losses.append(lstm_loss)
+        recon_losses.append(recon_loss)
+        kl_losses.append(kl_loss)
+    return np.mean(supervised_g_losses), np.mean(lstm_losses), np.mean(recon_losses), np.mean(kl_losses)
 
 
 def main():
@@ -110,7 +112,7 @@ def main():
     print('Start pre-training...')
     log.write('pre-training...\n')
     for epoch in range(PRE_EPOCH_NUM):
-        loss = pre_train_epoch(sess, generator, gen_data_loader)
+        losses = pre_train_epoch(sess, generator, gen_data_loader)
         if epoch % 5 == 0:
             generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
             likelihood_data_loader.create_batches(eval_file)

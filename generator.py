@@ -72,6 +72,9 @@ class Generator(object):
         lstm_predictions = tensor_array_ops.TensorArray(
             dtype=tf.float32, size=self.sequence_length,
             dynamic_size=False, infer_shape=True)
+        vae_logits = tensor_array_ops.TensorArray(
+            dtype=tf.float32, size=self.sequence_length,
+            dynamic_size=False, infer_shape=True)
         vae_predictions = tensor_array_ops.TensorArray(
             dtype=tf.float32, size=self.sequence_length,
             dynamic_size=False, infer_shape=True)
@@ -83,28 +86,30 @@ class Generator(object):
             dtype=tf.float32, size=self.sequence_length)
         ta_emb_x = ta_emb_x.unstack(self.processed_x)  # true input
 
-        def _pretrain_recurrence(i, x_t, h_tm1, lstm_predictions, vae_predictions, kl_losses):
+        def _pretrain_recurrence(i, x_t, h_tm1, lstm_predictions, vae_logits, vae_predictions, kl_losses):
             h_t = self.g_recurrent_unit(x_t, h_tm1)
             o_t = self.g_output_unit(h_t)  # output of lstm, batch x vocab_size
             pri_miu, pri_logvar = self.g_prior_distribution_unit(h_tm1[0])  # params for prior dist.
             pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], x_t)  # params for posterior dist.
             logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
             lstm_predictions = lstm_predictions.write(i, tf.nn.softmax(o_t))  # possibility distribution
-            vae_predictions = vae_predictions.write(i, logits)
-            # kl_losses = kl_losses.write(i, self.calculate_kl_loss(pri_miu, pri_logvar, pos_miu, pos_logvar))
+            vae_logits = vae_logits.write(i, logits)
+            vae_predictions = vae_predictions.write(i, prob)
             kl_losses = kl_losses.write(i, gaussian_kld(pri_miu, pri_logvar, pos_miu, pos_logvar))
             x_tp1 = ta_emb_x.read(i)  # true next input
-            return i + 1, x_tp1, h_t, lstm_predictions, vae_predictions, kl_losses
+            return i + 1, x_tp1, h_t, lstm_predictions, vae_logits, vae_predictions, kl_losses
 
-        _, _, _, self.lstm_predictions, self.vae_predictions, self.kl_losses = control_flow_ops.while_loop(
-            cond=lambda i, _1, _2, _3, _4, _5: i < self.sequence_length,
+        _, _, _, self.lstm_predictions, self.vae_logits, self.vae_predictions, self.kl_losses = control_flow_ops.while_loop(
+            cond=lambda i, _1, _2, _3, _4, _5, _6: i < self.sequence_length,
             body=_pretrain_recurrence,
             loop_vars=(tf.constant(0, dtype=tf.int32),
                        tf.nn.embedding_lookup(self.g_embeddings, self.start_token), self.h0,
-                       lstm_predictions, vae_predictions, kl_losses))
+                       lstm_predictions, vae_logits, vae_predictions, kl_losses))
 
         self.lstm_predictions = tf.transpose(self.lstm_predictions.stack(),
                                              perm=[1, 0, 2])  # batch_size x seq_length x vocab_size
+        self.vae_logits = tf.transpose(self.vae_logits.stack(),
+                                       perm=[1, 0, 2])  # batch_size x seq_length x vocab_size
         self.vae_predictions = tf.transpose(self.vae_predictions.stack(),
                                             perm=[1, 0, 2])  # batch_size x seq_length x vocab_size
 
@@ -117,8 +122,9 @@ class Generator(object):
             )
         ) / (self.sequence_length * self.batch_size)
         self.recon_loss = tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_predictions, [-1, self.num_emb]),
-                                                    labels=one_hot_x)) / (self.sequence_length * self.batch_size)
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_logits, [-1, self.num_emb]),
+                                                    labels=one_hot_x)
+        ) / (self.sequence_length * self.batch_size)
         self.kl_loss = tf.reduce_sum(self.kl_losses.stack())
 
         self.pretrain_loss = self.lstm_loss + self.recon_loss + self.kl_loss
@@ -149,13 +155,9 @@ class Generator(object):
         return outputs
 
     def pretrain_step(self, sess, x):
-        outputs = sess.run([self.pretrain_updates, self.pretrain_loss, self.lstm_predictions, self.vae_predictions, self.lstm_loss, self.recon_loss, self.kl_loss], feed_dict={self.x: x})
-        # print("lstm predictions:\n", outputs[2])
-        # print("vae predictions:\n", outputs[3])
-        print("lstm loss: %f", outputs[4])
-        print("recon loss: %f", outputs[5])
-        print("kl loss: %f", outputs[6])
-        return outputs[:2]
+        outputs = sess.run([self.pretrain_updates, self.pretrain_loss,
+                            self.lstm_loss, self.recon_loss, self.kl_loss], feed_dict={self.x: x})
+        return outputs
 
     def init_matrix(self, shape):
         return tf.random_normal(shape, stddev=0.1)
