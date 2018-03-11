@@ -1,4 +1,4 @@
-# SeqGAN
+# VGAN
 
 ## Requirements: 
 * **Tensorflow r1.0.1**
@@ -6,11 +6,11 @@
 * CUDA 7.5+ (For GPU)
 
 ## Introduction
-Apply Generative Adversarial Nets to generating sequences of discrete tokens.
+Applying VAE + GAN for text generation.
 
-![](https://github.com/LantaoYu/SeqGAN/blob/master/figures/seqgan.png)
+Based on research paper [Text Generation Based on Generative Adversarial Nets with Latent Variable](https://arxiv.org/abs/1712.00170).
 
-The illustration of SeqGAN. Left: D is trained over the real data and the generated data by G. Right: G is trained by policy gradient where the final reward signal is provided by D and is passed back to the intermediate action value via Monte Carlo search.  
+Forked from [SeqGAN](https://github.com/LantaoYu/SeqGAN).
 
 The research paper [SeqGAN: Sequence Generative Adversarial Nets with Policy Gradient](http://arxiv.org/abs/1609.05473) has been accepted at the Thirty-First AAAI Conference on Artificial Intelligence (AAAI-17).
 
