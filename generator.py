@@ -50,6 +50,7 @@ class Generator(object):
         # processed for batch
         with tf.device("/cpu:0"):
             self.processed_x = tf.transpose(tf.nn.embedding_lookup(self.vocab_embeddings, self.x), perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
+            self.processed_condition = tf.nn.embedding_lookup(self.condition_embeddings, self.condition)  # batch_size x cond_emb_dim
 
         # Initial states
         self.h0 = tf.zeros([self.batch_size, self.hidden_dim])
@@ -308,9 +309,9 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpr_miu) + \
+            miu = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_miu) + \
                   tf.matmul(h, self.Wpr_miu) + self.bpr_miu
-            logvar = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpr_sig) +\
+            logvar = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_sig) +\
                      tf.matmul(h, self.Wpr_sig) + self.bpr_sig
             return miu, logvar
 
@@ -338,9 +339,9 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpo_miu) + \
+            miu = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_miu) + \
                 tf.matmul(h, self.Wpo_miu) + tf.matmul(x, self.Upo_miu) + self.bpo_miu
-            logvar = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpo_sig) + \
+            logvar = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_sig) + \
                 tf.matmul(h, self.Wpo_sig) + tf.matmul(x, self.Upo_sig) + self.bpo_sig
             return miu, logvar
 
