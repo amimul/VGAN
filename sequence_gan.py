@@ -48,10 +48,10 @@ def generate_samples(sess, trainable_model, batch_size, generated_num, output_fi
     for _ in range(int(generated_num / batch_size)):
         generated_samples.extend(trainable_model.generate(sess))
 
-    with open(output_file, 'w') as fout:
+    with open(output_file, 'wb') as fout:
         for poem in generated_samples:
             buffer = ' '.join([trainable_model.vocab[x] for x in poem]) + '\n'
-            fout.write(buffer)
+            fout.write(buffer.encode('utf-8'))
     print("Samples generated!")
 
 
