@@ -39,6 +39,8 @@ negative_file = 'save/generator_sample.txt'
 eval_file = 'save/eval_file.txt'
 vocab_file = 'data/new_word_dict.pkl'
 condition_file = 'data/condition_dict.pkl'
+vocab_size = 3016
+condition_size = 1118
 generated_num = 10000
 
 
@@ -91,7 +93,6 @@ def main():
 
     gen_data_loader = Gen_Data_loader(BATCH_SIZE)
     likelihood_data_loader = Gen_Data_loader(BATCH_SIZE)  # For testing
-    vocab_size = 5000
     dis_data_loader = Dis_dataloader(BATCH_SIZE)
 
     generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, Z_DIM, SEQ_LENGTH, START_TOKEN, vocab_file, condition_file)
