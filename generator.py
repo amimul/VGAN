@@ -3,12 +3,16 @@ from tensorflow.python.ops import tensor_array_ops, control_flow_ops
 
 
 class Generator(object):
-    def __init__(self, num_emb, batch_size, emb_dim, hidden_dim, z_dim,
+    def __init__(self, vocab_size, condition_size, condition_num, batch_size, emb_dim,
+                 emb_condition_dim, hidden_dim, z_dim,
                  sequence_length, start_token, vocab_file, condition_file,
                  word_vec=None, learning_rate=0.01, reward_gamma=0.95):
-        self.num_emb = num_emb  # vocab_size
+        self.vocab_size = vocab_size
+        self.condition_size = condition_size
+        self.condition_num = condition_num
         self.batch_size = batch_size
         self.emb_dim = emb_dim
+        self.emb_condition_dim = emb_condition_dim
         self.hidden_dim = hidden_dim
         self.z_dim = z_dim
         self.sequence_length = sequence_length
@@ -26,10 +30,11 @@ class Generator(object):
 
         with tf.variable_scope('generator'):
             if word_vec is None:
-                self.g_embeddings = tf.Variable(self.init_matrix([self.num_emb, self.emb_dim]))
+                self.vocab_embeddings = tf.Variable(self.init_matrix([self.vocab_size, self.emb_dim]))
             else:
-                self.g_embeddings = tf.Variable(embedding_matrix(word_vec, self.vocab))
-            self.g_params.append(self.g_embeddings)
+                self.vocab_embeddings = tf.Variable(embedding_matrix(word_vec, self.vocab))
+            self.condition_embeddings = tf.Variable(self.init_matrix([self.condition_size, self.emb_condition_dim]))
+            self.g_params.extend([self.vocab_embeddings, self.condition_embeddings])
             self.g_recurrent_unit = self.create_recurrent_unit(self.g_params)  # maps h_tm1 to h_t for generator
             self.g_output_unit = self.create_output_unit(self.g_params)  # maps h_t to o_t (output token logits)
             self.g_vae_unit = self.create_vae_unit(self.g_params)
@@ -39,11 +44,12 @@ class Generator(object):
         # placeholder definition
         self.x = tf.placeholder(tf.int32, shape=[self.batch_size, self.sequence_length])  # input for generator
         self.y = tf.placeholder(tf.int32, shape=[self.batch_size, self.sequence_length])  # true output
+        self.condition = tf.placeholder(tf.int32, shape=[self.batch_size, self.condition_num])
         self.rewards = tf.placeholder(tf.float32, shape=[self.batch_size, self.sequence_length])  # get from rollout policy and discriminator
 
         # processed for batch
         with tf.device("/cpu:0"):
-            self.processed_x = tf.transpose(tf.nn.embedding_lookup(self.g_embeddings, self.x), perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
+            self.processed_x = tf.transpose(tf.nn.embedding_lookup(self.vocab_embeddings, self.x), perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
 
         # Initial states
         self.h0 = tf.zeros([self.batch_size, self.hidden_dim])
@@ -55,34 +61,22 @@ class Generator(object):
                                              dynamic_size=False, infer_shape=True)
 
         def _g_recurrence(i, x_t, h_tm1, gen_o, gen_x):
-#            """
             h_t = self.g_recurrent_unit(x_t, h_tm1)  # hidden_memory_tuple
             pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], x_t)  # params for posterior dist.
             logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
             log_prob = tf.log(prob)
             next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)  # [batch_size]
-            x_tp1 = tf.nn.embedding_lookup(self.g_embeddings, next_token)  # batch x emb_dim, x_t for next loop
-            gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.num_emb, 1.0, 0.0),
+            x_tp1 = tf.nn.embedding_lookup(self.vocab_embeddings, next_token)  # batch x emb_dim, x_t for next loop
+            gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.vocab_size, 1.0, 0.0),
                                                              prob), 1))  # [batch_size] , prob
             gen_x = gen_x.write(i, next_token)  # indices, batch_size
             return i + 1, x_tp1, h_t, gen_o, gen_x
-            """
-            h_t = self.g_recurrent_unit(x_t, h_tm1)  # hidden_memory_tuple
-            o_t = self.g_output_unit(h_t)  # batch x vocab , logits not prob
-            log_prob = tf.log(tf.nn.softmax(o_t))
-            next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)
-            x_tp1 = tf.nn.embedding_lookup(self.g_embeddings, next_token)  # batch x emb_dim
-            gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.num_emb, 1.0, 0.0),
-                                                             tf.nn.softmax(o_t)), 1))  # [batch_size] , prob
-            gen_x = gen_x.write(i, next_token)  # indices, batch_size
-            return i + 1, x_tp1, h_t, gen_o, gen_x
-            """
 
         _, _, _, self.gen_o, self.gen_x = control_flow_ops.while_loop(
             cond=lambda i, _1, _2, _3, _4: i < self.sequence_length,
             body=_g_recurrence,
             loop_vars=(tf.constant(0, dtype=tf.int32),
-                       tf.nn.embedding_lookup(self.g_embeddings, self.start_token), self.h0, gen_o, gen_x))
+                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.h0, gen_o, gen_x))
 
         self.gen_x = self.gen_x.stack()  # seq_length x batch_size
         self.gen_x = tf.transpose(self.gen_x, perm=[1, 0])  # batch_size x seq_length
@@ -122,7 +116,7 @@ class Generator(object):
             cond=lambda i, _1, _2, _3, _4, _5, _6: i < self.sequence_length,
             body=_pretrain_recurrence,
             loop_vars=(tf.constant(0, dtype=tf.int32),
-                       tf.nn.embedding_lookup(self.g_embeddings, self.start_token), self.h0,
+                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.h0,
                        lstm_predictions, vae_logits, vae_predictions, kl_losses))
 
         self.lstm_predictions = tf.transpose(self.lstm_predictions.stack(),
@@ -133,15 +127,15 @@ class Generator(object):
                                             perm=[1, 0, 2])  # batch_size x seq_length x vocab_size
 
         # pretraining loss
-        one_hot_x = tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.num_emb,
+        one_hot_x = tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.vocab_size,
                                1.0, 0.0)  # (batch * seqlen) * vocab_size
         self.lstm_loss = -tf.reduce_sum(
             one_hot_x * tf.log(
-                tf.clip_by_value(tf.reshape(self.lstm_predictions, [-1, self.num_emb]), 1e-20, 1.0)
+                tf.clip_by_value(tf.reshape(self.lstm_predictions, [-1, self.vocab_size]), 1e-20, 1.0)
             )
         ) / (self.sequence_length * self.batch_size)
         self.recon_loss = tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_logits, [-1, self.num_emb]),
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_logits, [-1, self.vocab_size]),
                                                     labels=one_hot_x)
         ) / (self.sequence_length * self.batch_size)
         self.kl_loss = tf.reduce_sum(self.kl_losses.stack())
@@ -159,8 +153,8 @@ class Generator(object):
         #######################################################################################################
         self.g_loss = -tf.reduce_sum(
             tf.reduce_sum(
-                tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.num_emb, 1.0, 0.0) * tf.log(
-                    tf.clip_by_value(tf.reshape(self.vae_predictions, [-1, self.num_emb]), 1e-20, 1.0)
+                tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.vocab_size, 1.0, 0.0) * tf.log(
+                    tf.clip_by_value(tf.reshape(self.vae_predictions, [-1, self.vocab_size]), 1e-20, 1.0)
                 ), 1) * tf.reshape(self.rewards, [-1])
         )
 
@@ -181,7 +175,7 @@ class Generator(object):
         """
         outputs = sess.run([self.pretrain_updates, self.pretrain_loss,
                             self.lstm_loss, self.recon_loss, self.kl_loss],
-                           feed_dict={self.x: batch[1], self.y: batch[2]})
+                           feed_dict={self.condition: batch[0], self.x: batch[1], self.y: batch[2]})
         return outputs
 
     def init_matrix(self, shape):
@@ -251,8 +245,8 @@ class Generator(object):
         return unit  # returning a function
 
     def create_output_unit(self, params):
-        self.Wo = tf.Variable(self.init_matrix([self.hidden_dim, self.num_emb]))
-        self.bo = tf.Variable(self.init_matrix([self.num_emb]))
+        self.Wo = tf.Variable(self.init_matrix([self.hidden_dim, self.vocab_size]))
+        self.bo = tf.Variable(self.init_matrix([self.vocab_size]))
         params.extend([self.Wo, self.bo])
 
         def unit(hidden_memory_tuple):
@@ -271,8 +265,8 @@ class Generator(object):
         self.W_z2h = tf.Variable(self.init_matrix([self.z_dim, self.hidden_dim]))
         self.b_z2h = tf.Variable(self.init_matrix([self.hidden_dim]))
 
-        self.W_h2x = tf.Variable(self.init_matrix([self.hidden_dim, self.num_emb]))
-        self.b_h2x = tf.Variable(self.init_matrix([self.num_emb]))
+        self.W_h2x = tf.Variable(self.init_matrix([self.hidden_dim, self.vocab_size]))
+        self.b_h2x = tf.Variable(self.init_matrix([self.vocab_size]))
 
         params.extend([self.W_z2h, self.b_z2h, self.W_h2x, self.b_h2x])
 
@@ -283,14 +277,14 @@ class Generator(object):
             generate z and then recover X from z.
             :param miu: batch_size * z_dim
             :param logvar: batch_size * z_dim
-            :return: logits: batch_size * num_emb
-                    prob: batch_size * num_emb, probability over all vocabulary
+            :return: logits: batch_size * vocab_size
+                    prob: batch_size * vocab_size, probability over all vocabulary
             """
             print("vae predicting.")
             # reparametrization
             z = sample_gaussian(miu, logvar)  # batch * z_dim
             h = tf.nn.relu(tf.matmul(z, self.W_z2h) + self.b_z2h)  # batch * h_dim
-            logits = tf.matmul(h, self.W_h2x) + self.b_h2x  # batch * num_emb(vocab_size)
+            logits = tf.matmul(h, self.W_h2x) + self.b_h2x  # batch * vocab_size(vocab_size)
             prob = tf.nn.softmax(logits)
             return logits, prob
 
@@ -298,12 +292,14 @@ class Generator(object):
 
     def create_prior_distribution_unit(self, params):
         self.Wpr_miu = tf.Variable(self.init_matrix([self.hidden_dim, self.z_dim]))
+        self.Vpr_miu = tf.Variable(self.init_matrix([self.condition_num * self.emb_condition_dim, self.z_dim]))
         self.bpr_miu = tf.Variable(self.init_matrix([self.z_dim]))
 
         self.Wpr_sig = tf.Variable(self.init_matrix([self.hidden_dim, self.z_dim]))
+        self.Vpr_sig = tf.Variable(self.init_matrix([self.condition_num * self.emb_condition_dim, self.z_dim]))
         self.bpr_sig = tf.Variable(self.init_matrix([self.z_dim]))
 
-        params.extend([self.Wpr_miu, self.bpr_miu, self.Wpr_sig, self.bpr_sig])
+        params.extend([self.Wpr_miu, self.Vpr_miu, self.bpr_miu, self.Wpr_sig, self.Vpr_sig, self.bpr_sig])
 
         def unit(h):
             """
@@ -312,8 +308,10 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(h, self.Wpr_miu) + self.bpr_miu
-            logvar = tf.matmul(h, self.Wpr_sig) + self.bpr_sig
+            miu = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpr_miu) + \
+                  tf.matmul(h, self.Wpr_miu) + self.bpr_miu
+            logvar = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpr_sig) +\
+                     tf.matmul(h, self.Wpr_sig) + self.bpr_sig
             return miu, logvar
 
         return unit
@@ -321,13 +319,16 @@ class Generator(object):
     def create_posterior_distribution_unit(self, params):
         self.Wpo_miu = tf.Variable(self.init_matrix([self.hidden_dim, self.z_dim]))
         self.Upo_miu = tf.Variable(self.init_matrix([self.emb_dim, self.z_dim]))
+        self.Vpo_miu = tf.Variable(self.init_matrix([self.condition_num * self.emb_condition_dim, self.z_dim]))
         self.bpo_miu = tf.Variable(self.init_matrix([self.z_dim]))
 
         self.Wpo_sig = tf.Variable(self.init_matrix([self.hidden_dim, self.z_dim]))
         self.Upo_sig = tf.Variable(self.init_matrix([self.emb_dim, self.z_dim]))
+        self.Vpo_sig = tf.Variable(self.init_matrix([self.condition_num * self.emb_condition_dim, self.z_dim]))
         self.bpo_sig = tf.Variable(self.init_matrix([self.z_dim]))
 
-        params.extend([self.Wpo_miu, self.Upo_miu, self.bpo_miu, self.Wpo_sig, self.Upo_sig, self.bpo_sig])
+        params.extend([self.Wpo_miu, self.Upo_miu, self.Vpo_miu, self.bpo_miu,
+                       self.Wpo_sig, self.Upo_sig, self.Vpo_sig, self.bpo_sig])
 
         def unit(h, x):
             """
@@ -337,8 +338,10 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(h, self.Wpo_miu) + tf.matmul(x, self.Upo_miu) + self.bpo_miu
-            logvar = tf.matmul(h, self.Wpo_sig) + tf.matmul(x, self.Upo_sig) + self.bpo_sig
+            miu = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpo_miu) + \
+                tf.matmul(h, self.Wpo_miu) + tf.matmul(x, self.Upo_miu) + self.bpo_miu
+            logvar = tf.matmul(tf.reshape(self.condition, [self.batch_size, -1]), self.Vpo_sig) + \
+                tf.matmul(h, self.Wpo_sig) + tf.matmul(x, self.Upo_sig) + self.bpo_sig
             return miu, logvar
 
         return unit

@@ -1,1 +1,50 @@
 pre-training...
+pre-train epoch 0, g_loss: 44211.242188, lstm_loss: 4.988249, recon_loss: 192.528961, kl_loss: 44013.722656
+Samples generated!
+pre-train epoch 5, g_loss: 254.213898, lstm_loss: 1.616881, recon_loss: 2.794355, kl_loss: 249.802658
+Samples generated!
+pre-train epoch 10, g_loss: 146.653702, lstm_loss: 1.613297, recon_loss: 2.576777, kl_loss: 142.463608
+Samples generated!
+pre-train epoch 15, g_loss: 115.793922, lstm_loss: 1.610065, recon_loss: 2.506816, kl_loss: 111.677048
+Samples generated!
+pre-train epoch 20, g_loss: 68.925682, lstm_loss: 1.610145, recon_loss: 2.513546, kl_loss: 64.801987
+Samples generated!
+pre-train epoch 25, g_loss: 51.815392, lstm_loss: 1.608071, recon_loss: 2.528735, kl_loss: 47.678581
+Samples generated!
+pre-train epoch 30, g_loss: 33.485401, lstm_loss: 1.611000, recon_loss: 2.475827, kl_loss: 29.398573
+Samples generated!
+pre-train epoch 35, g_loss: 51.691673, lstm_loss: 1.607918, recon_loss: 2.448742, kl_loss: 47.635017
+Samples generated!
+pre-train epoch 40, g_loss: 49.279522, lstm_loss: 1.598964, recon_loss: 2.362942, kl_loss: 45.317616
+Samples generated!
+pre-train epoch 45, g_loss: 36.559925, lstm_loss: 1.614393, recon_loss: 2.458996, kl_loss: 32.486538
+Samples generated!
+pre-train epoch 50, g_loss: 36.954632, lstm_loss: 1.606014, recon_loss: 2.398993, kl_loss: 32.949623
+Samples generated!
+pre-train epoch 55, g_loss: 43.413074, lstm_loss: 1.608216, recon_loss: 2.392698, kl_loss: 39.412155
+Samples generated!
+pre-train epoch 60, g_loss: 39.249153, lstm_loss: 1.606187, recon_loss: 2.368358, kl_loss: 35.274605
+Samples generated!
+pre-train epoch 65, g_loss: 42.127216, lstm_loss: 1.596695, recon_loss: 2.324140, kl_loss: 38.206383
+Samples generated!
+pre-train epoch 70, g_loss: 34.934288, lstm_loss: 1.609410, recon_loss: 2.375874, kl_loss: 30.949005
+Samples generated!
+pre-train epoch 75, g_loss: 37.109074, lstm_loss: 1.601717, recon_loss: 2.351892, kl_loss: 33.155468
+Samples generated!
+pre-train epoch 80, g_loss: 24.615103, lstm_loss: 1.607250, recon_loss: 2.363437, kl_loss: 20.644417
+Samples generated!
+pre-train epoch 85, g_loss: 29.898775, lstm_loss: 1.604240, recon_loss: 2.350796, kl_loss: 25.943741
+Samples generated!
+pre-train epoch 90, g_loss: 21.748970, lstm_loss: 1.607498, recon_loss: 2.363360, kl_loss: 17.778112
+Samples generated!
+pre-train epoch 95, g_loss: 24.533533, lstm_loss: 1.606379, recon_loss: 2.350365, kl_loss: 20.576792
+Samples generated!
+pre-train epoch 100, g_loss: 26.483248, lstm_loss: 1.604398, recon_loss: 2.336742, kl_loss: 22.542109
+Samples generated!
+pre-train epoch 105, g_loss: 31.912964, lstm_loss: 1.599151, recon_loss: 2.308569, kl_loss: 28.005249
+Samples generated!
+pre-train epoch 110, g_loss: 22.843763, lstm_loss: 1.608191, recon_loss: 2.334100, kl_loss: 18.901476
+Samples generated!
+pre-train epoch 115, g_loss: 21.748310, lstm_loss: 1.601819, recon_loss: 2.315566, kl_loss: 17.830927
+Samples generated!
+Start pre-training discriminator...

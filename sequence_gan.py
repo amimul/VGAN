@@ -12,8 +12,10 @@ import pickle as pkl
 #  Generator  Hyper-parameters
 ######################################################################################
 EMB_DIM = 300  # embedding dimension
+COND_DIM = 120  # embedding dimension
 HIDDEN_DIM = 32  # hidden state dimension of lstm cell
 Z_DIM = 100  # dimension for z in VAE
+FEATURE_NUM = 6  #
 SEQ_LENGTH = 51  # sequence length
 START_TOKEN = 3012
 PRE_EPOCH_NUM = 120  # supervise (maximum likelihood estimation) epochs
@@ -55,7 +57,6 @@ def generate_samples(sess, trainable_model, batch_size, generated_num, output_fi
         for poem in generated_samples:
             buffer = ' '.join([trainable_model.vocab[x] for x in poem]) + '\n'
             fout.write(buffer.encode('utf-8'))
-    print("Samples generated!")
 
 
 def target_loss(sess, target_lstm, data_loader):
@@ -96,7 +97,8 @@ def main():
     likelihood_data_loader = Gen_Data_loader(BATCH_SIZE)  # For testing
     dis_data_loader = Dis_dataloader(BATCH_SIZE)
 
-    generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, Z_DIM, SEQ_LENGTH, START_TOKEN, vocab_file, condition_file, word_vec=word_vec)
+    generator = Generator(vocab_size, condition_size, FEATURE_NUM, BATCH_SIZE, EMB_DIM, COND_DIM, HIDDEN_DIM, Z_DIM,
+                          SEQ_LENGTH, START_TOKEN, vocab_file, condition_file, word_vec=word_vec)
     # target_params = pkl.load(open('save/target_params.pkl', 'rb'))#, encoding='latin1')
     # target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params)  # The oracle model
 
@@ -120,8 +122,8 @@ def main():
     for epoch in range(PRE_EPOCH_NUM):
         g_loss, lstm_loss, recon_loss, kl_loss = pre_train_epoch(sess, generator, gen_data_loader)
         if epoch % 5 == 0:
-            print('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
-                  % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
+            log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
+                      % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
             generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
             # likelihood_data_loader.create_batches(eval_file)
             # test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
