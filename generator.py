@@ -18,7 +18,7 @@ class Generator(object):
         self.sequence_length = sequence_length
         self.start_token = tf.constant([start_token] * self.batch_size, dtype=tf.int32)
         self.vocab = load_vocab(vocab_file)
-        self.condition = load_vocab(condition_file)
+        self.condition_vocab = load_vocab(condition_file)
         self.learning_rate = tf.Variable(float(learning_rate), trainable=False)
         self.reward_gamma = reward_gamma
         self.g_params = []
