@@ -6,23 +6,27 @@ class Gen_Data_loader():
         self.batch_size = batch_size
         self.token_stream = []
 
-    def create_batches(self, data_file):
-        self.token_stream = []
-        with open(data_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                line = line.split()
-                parse_line = [int(x) for x in line]
-                if len(parse_line) == 20:
-                    self.token_stream.append(parse_line)
+    def create_batches(self, data_file, vocab_file=None, condition_file=None):
+        self.first_sentences_stream, self.second_sentences_stream, self.conditions_stream = [], [], []
+        with open(data_file, "r") as fin:
+            data = fin.readlines()
+        for poem in data:
+            details = [int(t) for t in poem.split()]
+            self.conditions_stream.append(details[:6])
+            self.first_sentences_stream.append([3012] + details[6: 56])
+            self.second_sentences_stream.append([3012] + details[56: 106])
 
-        self.num_batch = int(len(self.token_stream) / self.batch_size)
-        self.token_stream = self.token_stream[:self.num_batch * self.batch_size]
-        self.sequence_batch = np.split(np.array(self.token_stream), self.num_batch, 0)
+        self.num_batch = int(len(self.conditions_stream) / self.batch_size)
+        self.conditions_stream = self.conditions_stream[:self.num_batch * self.batch_size]
+        self.first_sentences_stream = self.first_sentences_stream[:self.num_batch * self.batch_size]
+        self.second_sentences_stream = self.second_sentences_stream[:self.num_batch * self.batch_size]
+        self.condition_batch = np.split(np.array(self.conditions_stream), self.num_batch, 0)
+        self.first_sentence_batch = np.split(np.array(self.first_sentences_stream), self.num_batch, 0)
+        self.second_sentence_batch = np.split(np.array(self.second_sentences_stream), self.num_batch, 0)
         self.pointer = 0
 
     def next_batch(self):
-        ret = self.sequence_batch[self.pointer]
+        ret = self.condition_batch[self.pointer], self.first_sentence_batch[self.pointer], self.second_sentence_batch[self.pointer]
         self.pointer = (self.pointer + 1) % self.num_batch
         return ret
 

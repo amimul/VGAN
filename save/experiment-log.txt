@@ -1,5 +1,1 @@
 pre-training...
-epoch:	0	nll:	10.250684
-epoch:	5	nll:	10.30096
-epoch:	10	nll:	10.29018
-epoch:	15	nll:	10.284327

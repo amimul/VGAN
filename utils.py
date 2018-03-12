@@ -1,4 +1,5 @@
 import tensorflow as tf
+import pickle as pkl
 
 
 def gaussian_kld(recog_mu, recog_logvar, prior_mu, prior_logvar):
@@ -13,3 +14,14 @@ def sample_gaussian(mu, logvar):
     std = tf.exp(0.5 * logvar)
     z= mu + tf.multiply(std, epsilon)
     return z
+
+
+def load_vocab(vocab_file):
+    """
+    :param vocab_file:
+    :return: a reversed dictionary, and a list that contains all the words
+    """
+    dic = pkl.load(open(vocab_file, 'rb'))
+    rst = {idx: word for word, idx in dic.items()}
+    words = [word for word, idx in dic.items()]
+    return rst, words
