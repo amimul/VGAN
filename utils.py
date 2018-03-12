@@ -23,5 +23,5 @@ def load_vocab(vocab_file):
     """
     dic = pkl.load(open(vocab_file, 'rb'))
     rst = {idx: word for word, idx in dic.items()}
-    words = [word for word, idx in dic.items()]
-    return rst, words
+    # words = [word for word, idx in dic.items()]
+    return rst#, words
