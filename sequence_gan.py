@@ -11,7 +11,7 @@ import pickle as pkl
 #########################################################################################
 #  Generator  Hyper-parameters
 ######################################################################################
-EMB_DIM = 32  # embedding dimension
+EMB_DIM = 300  # embedding dimension
 HIDDEN_DIM = 32  # hidden state dimension of lstm cell
 Z_DIM = 100  # dimension for z in VAE
 SEQ_LENGTH = 51  # sequence length
@@ -39,6 +39,7 @@ negative_file = 'save/generator_sample.txt'
 eval_file = 'save/eval_file.txt'
 vocab_file = 'data/new_word_dict.pkl'
 condition_file = 'data/condition_dict.pkl'
+word_vec = 'data/poems.wordvec.model.bin'
 vocab_size = 3016
 condition_size = 1118
 generated_num = 10000
@@ -95,7 +96,7 @@ def main():
     likelihood_data_loader = Gen_Data_loader(BATCH_SIZE)  # For testing
     dis_data_loader = Dis_dataloader(BATCH_SIZE)
 
-    generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, Z_DIM, SEQ_LENGTH, START_TOKEN, vocab_file, condition_file)
+    generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, Z_DIM, SEQ_LENGTH, START_TOKEN, vocab_file, condition_file, word_vec=word_vec)
     # target_params = pkl.load(open('save/target_params.pkl', 'rb'))#, encoding='latin1')
     # target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params)  # The oracle model
 

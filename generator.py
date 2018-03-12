@@ -5,7 +5,7 @@ from tensorflow.python.ops import tensor_array_ops, control_flow_ops
 class Generator(object):
     def __init__(self, num_emb, batch_size, emb_dim, hidden_dim, z_dim,
                  sequence_length, start_token, vocab_file, condition_file,
-                 learning_rate=0.01, reward_gamma=0.95):
+                 word_vec=None, learning_rate=0.01, reward_gamma=0.95):
         self.num_emb = num_emb  # vocab_size
         self.batch_size = batch_size
         self.emb_dim = emb_dim
@@ -25,7 +25,10 @@ class Generator(object):
         self.expected_reward = tf.Variable(tf.zeros([self.sequence_length]))
 
         with tf.variable_scope('generator'):
-            self.g_embeddings = tf.Variable(self.init_matrix([self.num_emb, self.emb_dim]))
+            if word_vec is None:
+                self.g_embeddings = tf.Variable(self.init_matrix([self.num_emb, self.emb_dim]))
+            else:
+                self.g_embeddings = tf.Variable(embedding_matrix(word_vec, self.vocab))
             self.g_params.append(self.g_embeddings)
             self.g_recurrent_unit = self.create_recurrent_unit(self.g_params)  # maps h_tm1 to h_t for generator
             self.g_output_unit = self.create_output_unit(self.g_params)  # maps h_t to o_t (output token logits)

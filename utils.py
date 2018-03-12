@@ -1,4 +1,6 @@
+from gensim.models import KeyedVectors
 import tensorflow as tf
+import numpy as np
 import pickle as pkl
 
 
@@ -25,3 +27,24 @@ def load_vocab(vocab_file):
     rst = {idx: word for word, idx in dic.items()}
     # words = [word for word, idx in dic.items()]
     return rst#, words
+
+
+def embedding_matrix(vecfile, dicts):
+    pretrained = KeyedVectors.load_word2vec_format(vecfile, binary=True)
+
+    def word_to_vec(word):
+        """
+        # given a word, return the embedding and index
+        # if not found, return a random normal distributed vector
+        """
+        if word in pretrained.vocab:
+            return pretrained[word]
+        else:
+            print(word.encode("utf-8"))
+            return np.random.normal(0, 1, 300)
+
+    embed = np.zeros(shape=(len(dicts), 300), dtype=np.float32)
+    for i, w in dicts.items():
+        print(w)
+        embed[i] = word_to_vec(w.lower())
+    return embed
