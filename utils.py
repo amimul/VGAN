@@ -45,6 +45,6 @@ def embedding_matrix(vecfile, dicts):
 
     embed = np.zeros(shape=(len(dicts), 300), dtype=np.float32)
     for i, w in dicts.items():
-        print(w)
+        #print(w)
         embed[i] = word_to_vec(w.lower())
     return embed
