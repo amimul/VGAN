@@ -1,50 +1,25 @@
 pre-training...
-pre-train epoch 0, g_loss: 44211.242188, lstm_loss: 4.988249, recon_loss: 192.528961, kl_loss: 44013.722656
-Samples generated!
-pre-train epoch 5, g_loss: 254.213898, lstm_loss: 1.616881, recon_loss: 2.794355, kl_loss: 249.802658
-Samples generated!
-pre-train epoch 10, g_loss: 146.653702, lstm_loss: 1.613297, recon_loss: 2.576777, kl_loss: 142.463608
-Samples generated!
-pre-train epoch 15, g_loss: 115.793922, lstm_loss: 1.610065, recon_loss: 2.506816, kl_loss: 111.677048
-Samples generated!
-pre-train epoch 20, g_loss: 68.925682, lstm_loss: 1.610145, recon_loss: 2.513546, kl_loss: 64.801987
-Samples generated!
-pre-train epoch 25, g_loss: 51.815392, lstm_loss: 1.608071, recon_loss: 2.528735, kl_loss: 47.678581
-Samples generated!
-pre-train epoch 30, g_loss: 33.485401, lstm_loss: 1.611000, recon_loss: 2.475827, kl_loss: 29.398573
-Samples generated!
-pre-train epoch 35, g_loss: 51.691673, lstm_loss: 1.607918, recon_loss: 2.448742, kl_loss: 47.635017
-Samples generated!
-pre-train epoch 40, g_loss: 49.279522, lstm_loss: 1.598964, recon_loss: 2.362942, kl_loss: 45.317616
-Samples generated!
-pre-train epoch 45, g_loss: 36.559925, lstm_loss: 1.614393, recon_loss: 2.458996, kl_loss: 32.486538
-Samples generated!
-pre-train epoch 50, g_loss: 36.954632, lstm_loss: 1.606014, recon_loss: 2.398993, kl_loss: 32.949623
-Samples generated!
-pre-train epoch 55, g_loss: 43.413074, lstm_loss: 1.608216, recon_loss: 2.392698, kl_loss: 39.412155
-Samples generated!
-pre-train epoch 60, g_loss: 39.249153, lstm_loss: 1.606187, recon_loss: 2.368358, kl_loss: 35.274605
-Samples generated!
-pre-train epoch 65, g_loss: 42.127216, lstm_loss: 1.596695, recon_loss: 2.324140, kl_loss: 38.206383
-Samples generated!
-pre-train epoch 70, g_loss: 34.934288, lstm_loss: 1.609410, recon_loss: 2.375874, kl_loss: 30.949005
-Samples generated!
-pre-train epoch 75, g_loss: 37.109074, lstm_loss: 1.601717, recon_loss: 2.351892, kl_loss: 33.155468
-Samples generated!
-pre-train epoch 80, g_loss: 24.615103, lstm_loss: 1.607250, recon_loss: 2.363437, kl_loss: 20.644417
-Samples generated!
-pre-train epoch 85, g_loss: 29.898775, lstm_loss: 1.604240, recon_loss: 2.350796, kl_loss: 25.943741
-Samples generated!
-pre-train epoch 90, g_loss: 21.748970, lstm_loss: 1.607498, recon_loss: 2.363360, kl_loss: 17.778112
-Samples generated!
-pre-train epoch 95, g_loss: 24.533533, lstm_loss: 1.606379, recon_loss: 2.350365, kl_loss: 20.576792
-Samples generated!
-pre-train epoch 100, g_loss: 26.483248, lstm_loss: 1.604398, recon_loss: 2.336742, kl_loss: 22.542109
-Samples generated!
-pre-train epoch 105, g_loss: 31.912964, lstm_loss: 1.599151, recon_loss: 2.308569, kl_loss: 28.005249
-Samples generated!
-pre-train epoch 110, g_loss: 22.843763, lstm_loss: 1.608191, recon_loss: 2.334100, kl_loss: 18.901476
-Samples generated!
-pre-train epoch 115, g_loss: 21.748310, lstm_loss: 1.601819, recon_loss: 2.315566, kl_loss: 17.830927
-Samples generated!
-Start pre-training discriminator...
+pre-train epoch 0, g_loss: 46549.753906, lstm_loss: 6.467794, recon_loss: 167.021530, kl_loss: 46376.261719
+pre-train epoch 5, g_loss: 831.681885, lstm_loss: 1.660982, recon_loss: 3.229488, kl_loss: 826.791443
+pre-train epoch 10, g_loss: 722.236450, lstm_loss: 1.611832, recon_loss: 3.153092, kl_loss: 717.471436
+pre-train epoch 15, g_loss: 725.957458, lstm_loss: 1.599064, recon_loss: 2.941542, kl_loss: 721.416748
+pre-train epoch 20, g_loss: 445.517487, lstm_loss: 1.596746, recon_loss: 2.937004, kl_loss: 440.983734
+pre-train epoch 25, g_loss: 368.218048, lstm_loss: 1.597635, recon_loss: 3.016805, kl_loss: 363.603577
+pre-train epoch 30, g_loss: 195.484390, lstm_loss: 1.597963, recon_loss: 2.938832, kl_loss: 190.947586
+pre-train epoch 35, g_loss: 195.143417, lstm_loss: 1.598144, recon_loss: 2.915749, kl_loss: 190.629517
+pre-train epoch 40, g_loss: 160.495956, lstm_loss: 1.600518, recon_loss: 2.931245, kl_loss: 155.964188
+pre-train epoch 45, g_loss: 891.269409, lstm_loss: 1.597327, recon_loss: 4.467862, kl_loss: 885.204224
+pre-train epoch 50, g_loss: 152.262421, lstm_loss: 1.600580, recon_loss: 2.972189, kl_loss: 147.689651
+pre-train epoch 55, g_loss: 94.017456, lstm_loss: 1.601995, recon_loss: 2.929772, kl_loss: 89.485695
+pre-train epoch 60, g_loss: 124.651871, lstm_loss: 1.602527, recon_loss: 2.905236, kl_loss: 120.144119
+pre-train epoch 65, g_loss: 136.045654, lstm_loss: 1.601151, recon_loss: 2.907970, kl_loss: 131.536514
+pre-train epoch 70, g_loss: 149.607315, lstm_loss: 1.601412, recon_loss: 2.963218, kl_loss: 145.042679
+pre-train epoch 75, g_loss: 436.357025, lstm_loss: 1.599437, recon_loss: 2.904669, kl_loss: 431.852905
+pre-train epoch 80, g_loss: 125.439491, lstm_loss: 1.604213, recon_loss: 2.974085, kl_loss: 120.861191
+pre-train epoch 85, g_loss: 103.770866, lstm_loss: 1.604131, recon_loss: 2.897831, kl_loss: 99.268890
+pre-train epoch 90, g_loss: 114.826256, lstm_loss: 1.602566, recon_loss: 2.910790, kl_loss: 110.312904
+pre-train epoch 95, g_loss: 115.778809, lstm_loss: 1.602645, recon_loss: 2.893866, kl_loss: 111.282288
+pre-train epoch 100, g_loss: 118.790390, lstm_loss: 1.601399, recon_loss: 3.686846, kl_loss: 113.502151
+pre-train epoch 105, g_loss: 623.785461, lstm_loss: 1.597741, recon_loss: 3.078075, kl_loss: 619.109619
+pre-train epoch 110, g_loss: 138.445526, lstm_loss: 1.599613, recon_loss: 2.923259, kl_loss: 133.922668
+pre-train epoch 115, g_loss: 99.971054, lstm_loss: 1.600535, recon_loss: 2.914508, kl_loss: 95.456001
