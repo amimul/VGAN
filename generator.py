@@ -49,40 +49,35 @@ class Generator(object):
 
         # processed for batch
         with tf.device("/cpu:0"):
-            self.processed_x = tf.transpose(tf.nn.embedding_lookup(self.vocab_embeddings, self.x), perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
-            self.processed_condition = tf.nn.embedding_lookup(self.condition_embeddings, self.condition)  # batch_size x cond_emb_dim
+            self.processed_x = tf.transpose(tf.nn.embedding_lookup(self.vocab_embeddings, self.x),
+                                            perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
+            self.processed_y = tf.transpose(tf.nn.embedding_lookup(self.vocab_embeddings, self.y),
+                                            perm=[1, 0, 2])  # seq_length x batch_size x emb_dim
+            self.processed_condition = tf.nn.embedding_lookup(self.condition_embeddings,
+                                                              self.condition)  # batch_size x cond_emb_dim
 
         # Initial states
         self.h0 = tf.zeros([self.batch_size, self.hidden_dim])
         self.h0 = tf.stack([self.h0, self.h0])
 
-        gen_o = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.sequence_length,
-                                             dynamic_size=False, infer_shape=True)
-        gen_x = tensor_array_ops.TensorArray(dtype=tf.int32, size=self.sequence_length,
-                                             dynamic_size=False, infer_shape=True)
+        # Encoding
+        ta_emb_x = tensor_array_ops.TensorArray(
+            dtype=tf.float32, size=self.sequence_length)
+        ta_emb_x = ta_emb_x.unstack(self.processed_x)  # true input, first sentences
 
-        def _g_recurrence(i, x_t, h_tm1, gen_o, gen_x):
-            h_t = self.g_recurrent_unit(x_t, h_tm1)  # hidden_memory_tuple
-            pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], x_t)  # params for posterior dist.
-            logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
-            log_prob = tf.log(prob)
-            next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)  # [batch_size]
-            x_tp1 = tf.nn.embedding_lookup(self.vocab_embeddings, next_token)  # batch x emb_dim, x_t for next loop
-            gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.vocab_size, 1.0, 0.0),
-                                                             prob), 1))  # [batch_size] , prob
-            gen_x = gen_x.write(i, next_token)  # indices, batch_size
-            return i + 1, x_tp1, h_t, gen_o, gen_x
+        def _g_encode(i, x_t, h_tm1):
+            h_t = self.g_recurrent_unit(x_t, h_tm1)
+            x_tp1 = ta_emb_x.read(i)  # true next input
+            return i + 1, x_tp1, h_t
 
-        _, _, _, self.gen_o, self.gen_x = control_flow_ops.while_loop(
-            cond=lambda i, _1, _2, _3, _4: i < self.sequence_length,
-            body=_g_recurrence,
+        _, _, self.enc_last = control_flow_ops.while_loop(
+            cond=lambda i, _1, _2: i < self.sequence_length,
+            body=_g_encode,
             loop_vars=(tf.constant(0, dtype=tf.int32),
-                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.h0, gen_o, gen_x))
-
-        self.gen_x = self.gen_x.stack()  # seq_length x batch_size
-        self.gen_x = tf.transpose(self.gen_x, perm=[1, 0])  # batch_size x seq_length
+                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.h0))
 
         # supervised pretraining for generator
+        # Decoding
         lstm_predictions = tensor_array_ops.TensorArray(
             dtype=tf.float32, size=self.sequence_length,
             dynamic_size=False, infer_shape=True)
@@ -96,28 +91,28 @@ class Generator(object):
             dtype=tf.float32, size=self.sequence_length,
             dynamic_size=False, infer_shape=True)
 
-        ta_emb_x = tensor_array_ops.TensorArray(
+        ta_emb_y = tensor_array_ops.TensorArray(
             dtype=tf.float32, size=self.sequence_length)
-        ta_emb_x = ta_emb_x.unstack(self.processed_x)  # true input
+        ta_emb_y = ta_emb_y.unstack(self.processed_y)  # true decode input
 
-        def _pretrain_recurrence(i, x_t, h_tm1, lstm_predictions, vae_logits, vae_predictions, kl_losses):
-            h_t = self.g_recurrent_unit(x_t, h_tm1)
+        def _g_pretrain_decode(i, y_t, h_tm1, lstm_predictions, vae_logits, vae_predictions, kl_losses):
+            h_t = self.g_recurrent_unit(y_t, h_tm1)
             o_t = self.g_output_unit(h_t)  # output of lstm, batch x vocab_size
             pri_miu, pri_logvar = self.g_prior_distribution_unit(h_tm1[0])  # params for prior dist.
-            pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], x_t)  # params for posterior dist.
+            pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], y_t)  # params for posterior dist.
             logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch x vocab_size
             lstm_predictions = lstm_predictions.write(i, tf.nn.softmax(o_t))  # possibility distribution
             vae_logits = vae_logits.write(i, logits)
             vae_predictions = vae_predictions.write(i, prob)
             kl_losses = kl_losses.write(i, gaussian_kld(pri_miu, pri_logvar, pos_miu, pos_logvar))
-            x_tp1 = ta_emb_x.read(i)  # true next input
-            return i + 1, x_tp1, h_t, lstm_predictions, vae_logits, vae_predictions, kl_losses
+            y_tp1 = ta_emb_y.read(i)  # true next input
+            return i + 1, y_tp1, h_t, lstm_predictions, vae_logits, vae_predictions, kl_losses
 
         _, _, _, self.lstm_predictions, self.vae_logits, self.vae_predictions, self.kl_losses = control_flow_ops.while_loop(
             cond=lambda i, _1, _2, _3, _4, _5, _6: i < self.sequence_length,
-            body=_pretrain_recurrence,
+            body=_g_pretrain_decode,
             loop_vars=(tf.constant(0, dtype=tf.int32),
-                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.h0,
+                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token), self.enc_last,
                        lstm_predictions, vae_logits, vae_predictions, kl_losses))
 
         self.lstm_predictions = tf.transpose(self.lstm_predictions.stack(),
@@ -128,19 +123,18 @@ class Generator(object):
                                             perm=[1, 0, 2])  # batch_size x seq_length x vocab_size
 
         # pretraining loss
-        one_hot_x = tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.vocab_size,
+        one_hot_y = tf.one_hot(tf.to_int32(tf.reshape(self.y, [-1])), self.vocab_size,
                                1.0, 0.0)  # (batch * seqlen) * vocab_size
         self.lstm_loss = -tf.reduce_sum(
-            one_hot_x * tf.log(
+            one_hot_y * tf.log(
                 tf.clip_by_value(tf.reshape(self.lstm_predictions, [-1, self.vocab_size]), 1e-20, 1.0)
             )
         ) / (self.sequence_length * self.batch_size)
         self.recon_loss = tf.reduce_sum(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=tf.reshape(self.vae_logits, [-1, self.vocab_size]),
-                                                    labels=one_hot_x)
+                                                    labels=one_hot_y)
         ) / (self.sequence_length * self.batch_size)
         self.kl_loss = tf.reduce_sum(self.kl_losses.stack())
-
         self.pretrain_loss = self.lstm_loss + self.recon_loss + self.kl_loss
 
         # training updates
@@ -148,6 +142,35 @@ class Generator(object):
 
         self.pretrain_grad, _ = tf.clip_by_global_norm(tf.gradients(self.pretrain_loss, self.g_params), self.grad_clip)
         self.pretrain_updates = pretrain_opt.apply_gradients(zip(self.pretrain_grad, self.g_params))
+
+        # Generating
+        gen_o = tensor_array_ops.TensorArray(dtype=tf.float32, size=self.sequence_length,
+                                             dynamic_size=False, infer_shape=True)
+        gen_y = tensor_array_ops.TensorArray(dtype=tf.int32, size=self.sequence_length,
+                                             dynamic_size=False, infer_shape=True)
+
+        def _g_decode(i, y_t, h_tm1, gen_o, gen_y):
+            h_t = self.g_recurrent_unit(y_t, h_tm1)  # hidden_memory_tuple
+            pos_miu, pos_logvar = self.g_posterior_distribution_unit(h_t[0], y_t)  # params for posterior dist.
+            logits, prob = self.g_vae_unit(pos_miu, pos_logvar)  # prediction of vae, batch * vocab_size
+            log_prob = tf.log(prob)
+            next_token = tf.cast(tf.reshape(tf.multinomial(log_prob, 1), [self.batch_size]), tf.int32)  # [batch_size]
+            y_tp1 = tf.nn.embedding_lookup(self.vocab_embeddings, next_token)  # batch * emb_dim, x_t for next loop
+            gen_o = gen_o.write(i, tf.reduce_sum(tf.multiply(tf.one_hot(next_token, self.vocab_size, 1.0, 0.0),
+                                                             prob), 1))  # [batch_size] , prob
+            gen_y = gen_y.write(i, next_token)  # indices, batch_size
+            return i + 1, y_tp1, h_t, gen_o, gen_y
+
+        _, _, _, self.gen_o, self.gen_y = control_flow_ops.while_loop(
+            cond=lambda i, _1, _2, _3, _4: i < self.sequence_length,
+            body=_g_decode,
+            loop_vars=(tf.constant(0, dtype=tf.int32),
+                       tf.nn.embedding_lookup(self.vocab_embeddings, self.start_token),
+                       self.enc_last, gen_o, gen_y))
+
+        self.gen_y = self.gen_y.stack()  # seq_length x batch_size
+        self.gen_y = tf.transpose(self.gen_y, perm=[1, 0])  # batch_size x seq_length
+
 
         #######################################################################################################
         #  Unsupervised Training
@@ -164,8 +187,8 @@ class Generator(object):
         self.g_grad, _ = tf.clip_by_global_norm(tf.gradients(self.g_loss, self.g_params), self.grad_clip)
         self.g_updates = g_opt.apply_gradients(zip(self.g_grad, self.g_params))
 
-    def generate(self, sess):
-        outputs = sess.run(self.gen_x)
+    def generate(self, sess, batch):
+        outputs = sess.run(self.gen_y, feed_dict={self.condition: batch[0], self.x: batch[1]})
         return outputs
 
     def pretrain_step(self, sess, batch):

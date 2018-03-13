@@ -47,11 +47,13 @@ condition_size = 1118
 generated_num = 10000
 
 
-def generate_samples(sess, trainable_model, batch_size, generated_num, output_file):
+def generate_samples(sess, trainable_model, data_loader, batch_size, generated_num, output_file):
     # Generate Samples
     generated_samples = []
+    data_loader.reset_pointer()
     for _ in range(int(generated_num / batch_size)):
-        generated_samples.extend(trainable_model.generate(sess))
+        batch = data_loader.next_batch()
+        generated_samples.extend(trainable_model.generate(sess, batch))
 
     with open(output_file, 'wb') as fout:
         for poem in generated_samples:
@@ -124,7 +126,7 @@ def main():
         if epoch % 5 == 0:
             log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
                       % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
-            generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
+            generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
             # likelihood_data_loader.create_batches(eval_file)
             # test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
             # print('pre-train epoch ', epoch, 'test_loss ', test_loss)
@@ -134,7 +136,7 @@ def main():
     print('Start pre-training discriminator...')
     # Train 3 epoch on the generated data and do this for 50 times
     for _ in range(50):
-        generate_samples(sess, generator, BATCH_SIZE, generated_num, negative_file)
+        generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, negative_file)
         dis_data_loader.load_train_data(positive_file, negative_file)
         for _ in range(3):
             dis_data_loader.reset_pointer()
@@ -162,7 +164,7 @@ def main():
 
         # Test
         if total_batch % 5 == 0 or total_batch == TOTAL_BATCH - 1:
-            generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
+            generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
             likelihood_data_loader.create_batches(eval_file)
             test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
             buffer = 'epoch:\t' + str(total_batch) + '\tnll:\t' + str(test_loss) + '\n'
@@ -174,7 +176,7 @@ def main():
 
         # Train the discriminator
         for _ in range(5):
-            generate_samples(sess, generator, BATCH_SIZE, generated_num, negative_file)
+            generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, negative_file)
             dis_data_loader.load_train_data(positive_file, negative_file)
 
             for _ in range(3):
