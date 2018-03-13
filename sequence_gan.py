@@ -5,8 +5,6 @@ from dataloader import Gen_Data_loader, Dis_dataloader
 from generator import Generator
 from discriminator import Discriminator
 from rollout import ROLLOUT
-from target_lstm import TARGET_LSTM
-import pickle as pkl
 
 #########################################################################################
 #  Generator  Hyper-parameters
@@ -57,8 +55,12 @@ def generate_samples(sess, trainable_model, data_loader, batch_size, generated_n
 
     with open(output_file, 'wb') as fout:
         for poem in generated_samples:
-            buffer = ' '.join([trainable_model.vocab[x] for x in poem]) + '\n'
+            buffer = ' '.join([str(x) for x in poem]) + '\n'
             fout.write(buffer.encode('utf-8'))
+
+    for poem in generated_samples[:5]:
+        buffer = ' '.join([trainable_model.vocab[x] for x in poem]) + '\n'
+        print(buffer.encode('utf-8'))
 
 
 def target_loss(sess, target_lstm, data_loader):
@@ -101,8 +103,6 @@ def main():
 
     generator = Generator(vocab_size, condition_size, FEATURE_NUM, BATCH_SIZE, EMB_DIM, COND_DIM, HIDDEN_DIM, Z_DIM,
                           SEQ_LENGTH, START_TOKEN, vocab_file, condition_file, word_vec=word_vec)
-    # target_params = pkl.load(open('save/target_params.pkl', 'rb'))#, encoding='latin1')
-    # target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params)  # The oracle model
 
     discriminator = Discriminator(sequence_length=20, num_classes=2, vocab_size=vocab_size,
                                   embedding_size=dis_embedding_dim, filter_sizes=dis_filter_sizes,
@@ -127,11 +127,6 @@ def main():
             log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
                       % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
             generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
-            # likelihood_data_loader.create_batches(eval_file)
-            # test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
-            # print('pre-train epoch ', epoch, 'test_loss ', test_loss)
-            # buffer = 'epoch:\t' + str(epoch) + '\tnll:\t' + str(test_loss) + '\n'
-            # log.write(buffer)
 
     print('Start pre-training discriminator...')
     # Train 3 epoch on the generated data and do this for 50 times
@@ -162,14 +157,9 @@ def main():
             feed = {generator.x: samples, generator.rewards: rewards}
             _ = sess.run(generator.g_updates, feed_dict=feed)
 
-        # Test
-        if total_batch % 5 == 0 or total_batch == TOTAL_BATCH - 1:
-            generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
-            likelihood_data_loader.create_batches(eval_file)
-            test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
-            buffer = 'epoch:\t' + str(total_batch) + '\tnll:\t' + str(test_loss) + '\n'
-            print('total_batch: ', total_batch, 'test_loss: ', test_loss)
-            log.write(buffer)
+        # # Test
+        # if total_batch % 5 == 0 or total_batch == TOTAL_BATCH - 1:
+        #     generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
 
         # Update roll-out parameters
         rollout.update_params()
