@@ -124,8 +124,10 @@ def main():
     for epoch in range(PRE_EPOCH_NUM):
         g_loss, lstm_loss, recon_loss, kl_loss = pre_train_epoch(sess, generator, gen_data_loader)
         if epoch % 5 == 0:
-            log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
+            log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f\n'
                       % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
+            print('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
+                  % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
             generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
 
     print('Start pre-training discriminator...')
