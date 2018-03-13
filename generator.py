@@ -332,10 +332,8 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_miu) + \
-                  tf.matmul(h, self.Wpr_miu) + self.bpr_miu
-            logvar = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_sig) +\
-                     tf.matmul(h, self.Wpr_sig) + self.bpr_sig
+            miu = tf.matmul(h, self.Wpr_miu) + self.bpr_miu #+ tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_miu)
+            logvar = tf.matmul(h, self.Wpr_sig) + self.bpr_sig #+ tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpr_sig)
             return miu, logvar
 
         return unit
@@ -362,10 +360,10 @@ class Generator(object):
                     miu: batch * z_dim
                     sigma_sqare: batch * z_dim * z_dim
             """
-            miu = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_miu) + \
-                tf.matmul(h, self.Wpo_miu) + tf.matmul(x, self.Upo_miu) + self.bpo_miu
-            logvar = tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_sig) + \
-                tf.matmul(h, self.Wpo_sig) + tf.matmul(x, self.Upo_sig) + self.bpo_sig
+            miu = tf.matmul(h, self.Wpo_miu) + tf.matmul(x, self.Upo_miu) + self.bpo_miu #+ tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_miu)
+
+            logvar = tf.matmul(h, self.Wpo_sig) + tf.matmul(x, self.Upo_sig) + self.bpo_sig #+ tf.matmul(tf.reshape(self.processed_condition, [self.batch_size, -1]), self.Vpo_sig)
+
             return miu, logvar
 
         return unit
