@@ -1,10 +1,9 @@
-import numpy as np
-import tensorflow as tf
 import random
 from dataloader import Gen_Data_loader, Dis_dataloader
 from generator import Generator
 from discriminator import Discriminator
 from rollout import ROLLOUT
+from utils import *
 
 #########################################################################################
 #  Generator  Hyper-parameters
@@ -40,6 +39,7 @@ eval_file = 'save/eval_file.txt'
 vocab_file = 'data/new_word_dict.pkl'
 condition_file = 'data/condition_dict.pkl'
 word_vec = 'data/poems.wordvec.model.bin'
+ckpt_dir = 'checkpoints/'
 vocab_size = 3016
 condition_size = 1118
 generated_num = 10000
@@ -98,7 +98,6 @@ def main():
     # assert START_TOKEN == 0
 
     gen_data_loader = Gen_Data_loader(BATCH_SIZE)
-    likelihood_data_loader = Gen_Data_loader(BATCH_SIZE)  # For testing
     dis_data_loader = Dis_dataloader(BATCH_SIZE)
 
     generator = Generator(vocab_size, condition_size, FEATURE_NUM, BATCH_SIZE, EMB_DIM, COND_DIM, HIDDEN_DIM, Z_DIM,
@@ -113,22 +112,32 @@ def main():
     sess = tf.Session(config=config)
     sess.run(tf.global_variables_initializer())
 
-    # First, use the oracle model to provide the positive examples, which are sampled from the oracle data distribution
-    # generate_samples(sess, target_lstm, BATCH_SIZE, generated_num, positive_file)
+    # Checkpoint
+    saver = tf.train.Saver()
+    ckpt = get_ckpt(ckpt_dir)
+    if ckpt is not None:
+        print("Load checkpoints from: ", ckpt)
+        saver.restore(sess, ckpt)
+
+    # Load true data
     gen_data_loader.create_batches(positive_file)
 
     log = open('save/experiment-log.txt', 'w')
+
     #  pre-train generator
     print('Start pre-training...')
     log.write('pre-training...\n')
     for epoch in range(PRE_EPOCH_NUM):
         g_loss, lstm_loss, recon_loss, kl_loss = pre_train_epoch(sess, generator, gen_data_loader)
-        if epoch % 5 == 0:
+        if epoch % 10 == 0:
             log.write('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f\n'
                       % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
             print('pre-train epoch %d, g_loss: %f, lstm_loss: %f, recon_loss: %f, kl_loss: %f'
                   % (epoch, g_loss, lstm_loss, recon_loss, kl_loss))
             generate_samples(sess, generator, gen_data_loader, BATCH_SIZE, generated_num, eval_file)
+
+            if epoch % 20 == 0:
+                saver.save(sess, os.path.join(ckpt_dir, 'checkpoint_' + str(epoch)))
 
     print('Start pre-training discriminator...')
     # Train 3 epoch on the generated data and do this for 50 times
@@ -154,7 +163,7 @@ def main():
     for total_batch in range(TOTAL_BATCH):
         # Train the generator for one step
         for it in range(1):
-            samples = generator.generate(sess)
+            samples = generator.generate(sess, gen_data_loader.next_batch())
             rewards = rollout.get_reward(sess, samples, 16, discriminator)
             feed = {generator.x: samples, generator.rewards: rewards}
             _ = sess.run(generator.g_updates, feed_dict=feed)

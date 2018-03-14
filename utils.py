@@ -2,6 +2,7 @@ from gensim.models import KeyedVectors
 import tensorflow as tf
 import numpy as np
 import pickle as pkl
+import os
 
 
 def gaussian_kld(recog_mu, recog_logvar, prior_mu, prior_logvar):
@@ -48,3 +49,15 @@ def embedding_matrix(vecfile, dicts):
         #print(w)
         embed[i] = word_to_vec(w.lower())
     return embed
+
+
+def get_ckpt(dirpath):
+    if os.path.exists(dirpath):
+        filepath = os.path.join(dirpath, 'checkpoint')
+        if os.path.isfile(filepath):
+            with open(filepath, 'r') as fin:
+                data = fin.readlines()
+            ckpt = os.path.join(dirpath, data[0].split('"')[1])
+            print("ckpt is: ", ckpt)
+            return ckpt
+    return None
